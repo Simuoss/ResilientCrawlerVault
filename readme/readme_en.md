@@ -5,7 +5,6 @@
 
 <div align="center">  
     <img src="https://img.shields.io/badge/Version-1.1.3-blue.svg" alt="Version">
-    <img src="https://img.shields.io/badge/Build-Passing-green.svg" alt="Build">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
 
 【[简体中文](../README.md)】         【[English](./readme_en.md)】  
