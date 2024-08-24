@@ -66,10 +66,10 @@
     ```shell
     python main.py
     ```
-    爬取下的HTML文件目录：`./html/{domain}/`
-    清洗后的Markdown文件目录：`./md/{domain}/`
-    网页中包含的文件目录：`./files/{domain}/`
-    爬取的文件与原网页的映射关系：`./files_mappping.jsonl`（该jsonl文件的结构在`globle_var.py`文件中有提到）
+    爬取下的HTML文件目录：`./html/{domain}/`  
+    清洗后的Markdown文件目录：`./md/{domain}/`  
+    网页中包含的文件目录：`./files/{domain}/`  
+    爬取的文件与原网页的映射关系：`./files_mappping.jsonl`（该jsonl文件的结构在`globle_var.py`文件中有提到）  
 
 ### 开发
 1. 克隆项目到本地：
