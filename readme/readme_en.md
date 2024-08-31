@@ -92,5 +92,6 @@
     >> **text_processor.py** : All functions related to text processing. Can be executed independently to clean HTML files and convert them to MD files (does not involve multithreading)  
     >> **file_operator.py** : All classes and objects related to file operations (thread-safe)  
     >> **logger_setup.py** : Logger setup (does not involve multithreading)  
+
     > **get_links_only.py** : A standalone tool that only retrieves links. It iterates to get all links starting with a specific string and outputs them to a TXT file, but does not save the page content.
 
