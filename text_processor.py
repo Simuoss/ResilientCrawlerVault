@@ -5,7 +5,7 @@ import html2text
 from bs4 import Comment
 import hashlib
 from logger_setup import logger
-import globle_var as gl
+import config as config
 
 def wash_url(url:str) -> str:
     """ 
@@ -86,20 +86,20 @@ def remove_specific_tags(html:str) -> str:
     """ 删除指定class标签 """
     soup = BeautifulSoup(html, 'html.parser')
     # 删除指定class标签
-    tags = gl.tags
+    tags = config.tags
     # 删除指定标签
     for tag in tags:
         [s.extract() for s in soup.find_all(class_=tag)]
         [s.extract() for s in soup.find_all(id=tag)]
     
     # 模糊匹配foot和head
-    tags_fuzzy = gl.tags_fuzzy
+    tags_fuzzy = config.tags_fuzzy
     for tag in tags_fuzzy:
         [s.extract() for s in soup.find_all(class_=re.compile(tag))]
         [s.extract() for s in soup.find_all(id=re.compile(tag))]
     
     # 删除包含超链接或相关内容的标签
-    hyperlinked_tags = gl.hyperlinked_tags
+    hyperlinked_tags = config.hyperlinked_tags
     for tag in hyperlinked_tags:
         for element in soup.find_all(tag):
             element.extract()
@@ -130,3 +130,12 @@ if __name__ == "__main__":
                     with open(os.path.join(md_dir, name.replace('.html', '.md')), 'w', encoding='utf-8') as file:
                         file.write(md)
                     print(f"{name}转换完成")
+
+def is_exclusions(url: str) -> bool:
+    """ 检查连接是否符合排除特征 """
+    # 排除特征
+    for exclusion in config.exclusions:
+        # 检测字符串
+        if exclusion in url:
+            return True
+    return False

@@ -3,7 +3,7 @@
 </div>
 
 <div align= "center">  
-    <img src="https://img.shields.io/badge/Version-1.1.3-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/Version-1.2.0-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
 
 【[简体中文](./README.md)】         【[English](./readme/readme_en.md)】  
@@ -29,6 +29,10 @@
 
 **ResilientCrawlerVault** 提供了一个全面、可靠的数据采集解决方案，特别适合需要长时间运行和处理复杂网络结构的场景。它的智能化功能和高稳定性能够满足各种数据收集和处理需求。
 
+### 📜 更新日志
+
+- [2024/8/31] v1.2.0 在保留所有旧特性的基础上添加了爬取网页的**多线程支持**
+
 ### 🧰 特性列表
 
 - [x] 支持迭代式爬取特定域名下的所有网页
@@ -41,7 +45,7 @@
 - [x] 爬取的文件与原网页建立映射关系
 - [ ] 自定义爬取深度和规则
 - [ ] 借助LLM实现增强的数据清洗和格式化选项
-- [ ] 多线程支持，提高爬取效率
+- [x] 多线程支持，提高爬取效率
 - [ ] 添加代理功能以实现IP池轮换
 - [ ] 完善Selenium支持，实现动态网页爬取
 
@@ -80,11 +84,13 @@
     pip install -r requirements.txt
     ```
 3. 使用你的IDE打开项目开发即可。
-    > **main.py** : 主程序入口  
-    >> **globle_var.py** : 配置文件与一些全局变量  
-    >> **get_resource.py** : 访问互联网的操作都在这里，如保存网页、下载文件等  
-    >> **text_processor.py** : 所有涉及处理文本的函数。可以单独执行，效果是将html文件清洗并转换为md文件  
-    >> **file_operator.py** : 所有涉及文件操作的函数  
-    >> **logger_setup.py** : 日志记录器设置  
+    > **main.py** : 主程序入口（创建线程池）  
+    >> **config.py** : 配置文件（不涉及多线程）
+    >> **globle_var.py** : 全局变量（不涉及多线程）  
+    >> **get_resource.py** : 访问互联网的操作都在这里，如保存网页、下载文件等（对变量加且仅加一层锁，以实现线程安全和防锁死）  
+    >> **text_processor.py** : 所有涉及处理文本的函数。可以单独执行，效果是将html文件清洗并转换为md文件（不涉及多线程）  
+    >> **file_operator.py** : 所有涉及文件操作的类与对象（线程安全）  
+    >> **logger_setup.py** : 日志记录器设置（不涉及多线程）  
+    > **get_links_only.py** : 一个独立的，只获取链接的小工具，用于迭代式获取以某段字符开头的所有链接，并输出到txt，但不保存页面内容
  
 

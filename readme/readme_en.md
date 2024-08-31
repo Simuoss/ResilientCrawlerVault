@@ -4,7 +4,7 @@
 </div>
 
 <div align="center">  
-    <img src="https://img.shields.io/badge/Version-1.1.3-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/Version-1.2.0-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
 
 【[简体中文](../README.md)】         【[English](./readme_en.md)】  
@@ -30,6 +30,10 @@
 
 **ResilientCrawlerVault** provides a comprehensive and reliable data collection solution, particularly suited for long-running tasks and scenarios involving complex web structures. Its intelligent features and high stability meet a wide range of data collection and processing needs.
 
+### 📜 Changelog
+
+- [2024/8/31] v1.2.0 Added **multi-threading support** for web crawling while retaining all previous features
+
 ### 🧰 Feature List
 
 - [x] Supports iterative crawling of all web pages under a specific domain
@@ -42,7 +46,7 @@
 - [x] Establishes a mapping between crawled files and original web pages
 - [ ] Customizable crawl depth and rules
 - [ ] Enhanced data cleaning and formatting options with LLM integration
-- [ ] Multi-threading support to improve crawl efficiency
+- [x] Multi-threading support to improve crawl efficiency
 - [ ] Proxy support for IP pool rotation
 - [ ] Improved Selenium support for dynamic web page crawling
 
@@ -80,11 +84,13 @@
     ```shell
     pip install -r requirements.txt
     ```
-3. Use your IDE to open the project for development.
-    > **main.py** : Entry point of the main program  
-    >> **globle_var.py** : Configuration file and global variables  
-    >> **get_resource.py** : Contains operations for accessing the internet, such as saving web pages, downloading files, etc.  
-    >> **text_processor.py** : Functions related to text processing. It can be run independently to clean and convert HTML files into Markdown files  
-    >> **file_operator.py** : Contains all functions related to file operations  
-    >> **logger_setup.py** : Logger setup  
+3. Open the project for development using your IDE.  
+    > **main.py** : The main program entry point (creates thread pool)  
+    >> **config.py** : Configuration file (does not involve multithreading)  
+    >> **global_var.py** : Global variables (does not involve multithreading)  
+    >> **get_resource.py** : All operations related to accessing the internet, such as saving webpages and downloading files (adds only one layer of lock to variables to ensure thread safety and prevent deadlock)  
+    >> **text_processor.py** : All functions related to text processing. Can be executed independently to clean HTML files and convert them to MD files (does not involve multithreading)  
+    >> **file_operator.py** : All classes and objects related to file operations (thread-safe)  
+    >> **logger_setup.py** : Logger setup (does not involve multithreading)  
+    > **get_links_only.py** : A standalone tool that only retrieves links. It iterates to get all links starting with a specific string and outputs them to a TXT file, but does not save the page content.
 

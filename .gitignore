@@ -1,5 +1,12 @@
 .vscode/
 logs/
+files/
+html/
+md/
+
+*.txt
+*.jsonl
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

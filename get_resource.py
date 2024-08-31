@@ -1,10 +1,11 @@
 from typing import Tuple, Union
 
 import chardet
-from file_operator import record_error_url, save_page, saveline_page_hash, saveline_searched_url
+import config
+from file_operator import save_page, searched_url_file, page_hash_file, file_link_file, page_link_file, files_mask_file, files_mapping_file, error_url_file
 from logger_setup import logger
-import globle_var as gl
-from text_processor import wash_url, md_html2text, my_html2text, stable_hash, remove_specific_tags
+import globle_var as gv
+from text_processor import wash_url, md_html2text, my_html2text, stable_hash, remove_specific_tags, is_exclusions
 # 导入所需的库
 from msedge.selenium_tools import EdgeOptions
 from msedge.selenium_tools import Edge
@@ -56,20 +57,21 @@ def fetch_url(url:str, headers:dict, forbidden_domain:str, verify: bool=False, r
     """
     # 从左往右，遇到第一个<符号，截断，防止出现“https://dsai.chd.edu.cn/<span style='color:red;font-size:9pt'>转换链接错误</span>”
     url = url.split('<')[0]
-    if url in gl.searched_url:
-        logger.debug(f"[在重定向时跳过已爬取url] ：{url}")
-        return None
-    else:
-        logger.debug(f"[在重定向时添加新链接到已爬取url] ：{url}")
-        gl.searched_url.add(url)
-        saveline_searched_url(url)
+    with gv.lock_searched_url:
+        if url in gv.searched_url and retry == 5:
+            logger.debug(f"[在重定向时跳过已爬取url] ：{url}")
+            return None
+        else:
+            logger.debug(f"[在重定向时添加新链接到已爬取url] ：{url}")
+            gv.searched_url.add(url)
+            searched_url_file.save_line(url)
 
     try:
         response = requests.get(url = url, headers = headers, allow_redirects=False,timeout=(2, 4), verify = verify)  # 禁用自动重定向
         logger.debug(response)
         if response.status_code == 404:
             logger.warning(f"[404 Not Found]: {url}")
-            record_error_url("404", url)
+            error_url_file.record_error("404", url)
             return None
         
         if response.status_code in [301, 302]:  # 检测重定向状态码
@@ -96,32 +98,32 @@ def fetch_url(url:str, headers:dict, forbidden_domain:str, verify: bool=False, r
             return response
     except requests.exceptions.ReadTimeout:
         logger.error("请求失败：连接超时（Read timed out）")
-        record_error_url("Timeout", url)
+        error_url_file.record_error("Timeout", url)
         return None
     except requests.exceptions.SSLError as e:
         logger.warning(f"请求失败：SSL 错误（{e}）")
         if retry > 0:
             return fetch_url(url, headers, forbidden_domain, verify=False,retry=retry-1)  # 可以递归执行重定向
-        record_error_url("SSL", url)
+        error_url_file.record_error("SSL", url)
         return None
     except requests.exceptions.ProxyError as e:
         logger.warning(f"请求失败：代理错误（{e}）")
-        record_error_url("Proxy", url)
+        error_url_file.record_error("Proxy", url)
         return None
     except requests.RequestException as e:
         logger.error(f"请求失败: {e}")
-        record_error_url("Others", url)
+        error_url_file.record_error("Others", url)
         return None
 
 def requests_get_page(url:str) -> Union[str, None]:
     """ 使用 requests 获取HTML页面 """
     # 设置请求头
-    headers = gl.request_headers
+    headers = config.request_headers
     headers['host'] = urlparse(url).netloc
     logger.debug(f"正在使用requests获取页面: {url}")
     # 发起请求并获取页面HTML
     #response = requests.get(url, headers=headers,timeout=(2, 4))
-    response = fetch_url(url, headers, gl.domain)
+    response = fetch_url(url, headers, config.domain)
     if response == None:
         return None
     response.encoding = chardet.detect(response.content)['encoding']# 自动检测编码
@@ -130,11 +132,11 @@ def requests_get_page(url:str) -> Union[str, None]:
 def is_file_url(parsed_url: ParseResultBytes, type='text') -> bool:
     """ 判断 URL 是否指向文件 """
     if type == 'text':
-        return parsed_url.path.endswith(gl.text_tails)
+        return parsed_url.path.endswith(config.text_tails)
     else:
-        return parsed_url.path.endswith(gl.file_tails)
+        return parsed_url.path.endswith(config.file_tails)
 
-def extract_links(url: str, html: str, domain: str=gl.domain) -> tuple[set, list]:
+def extract_links(url: str, html: str, domain: str=config.domain) -> tuple[set, list]:
     """ 从页面中提取所有链接并添加进任务栈 """
     page_links = set()
     files_in_page = [url]
@@ -227,45 +229,48 @@ def crawl_and_save(url: str, func: callable, driver=None) -> Union[tuple[set, li
 
     # 获取页面的哈希值，如果已经爬取过则直接返回
     md_hash = stable_hash(md)
-    if md_hash in gl.page_hash:
-        logger.debug(f"[新链接但内容已存在] 页面哈希：{md_hash}")
-        return None
+    with gv.lock_page_hash:
+        if md_hash in gv.page_hash:
+            logger.debug(f"[新链接但内容已存在] 页面哈希：{md_hash}")
+            return None
+        
+        # 保存哈希值
+        gv.page_hash.add(md_hash)
+    page_hash_file.save_line(md_hash)
     
-    # 保存哈希值
-    saveline_page_hash(md_hash)
-    gl.page_hash.add(md_hash)
 
     # 保存HTML到指定文件
     file_name = wash_url(url)
     save_page(file_name, html, 'html')
     # 保存md文件
-    if gl.trans_md:
+    if config.trans_md:
         save_page(file_name, md, 'md')
 
     # 提取页面所有链接
-    page_links, file_links = extract_links(url, html, gl.domain)
+    page_links, file_links = extract_links(url, html, config.domain)
     
     return page_links, file_links
 
-def is_exclusions(url: str) -> bool:
-    """ 检查连接是否符合排除特征 """
-    # 排除特征
-    for exclusion in gl.exclusions:
-        # 检测字符串
-        if exclusion in url:
-            return True
-    return False
+
 
 # 返回一个()
-def crawl_recursive(url:str, driver) -> Union[tuple[set, list], None]:
-    """ 单条爬取任务处理 """
+def crawl_recursive(url:str, driver) -> int:
+    """ 
+    单条爬取任务处理 
+    url: 页面链接
+    driver: Edge WebDriver 实例，若为None则使用requests库
+    返回：本轮新增的页面链接数量
+    """
+    pbar_add = 0
+
     # 检查是否已经爬取过
-    if url in gl.searched_url:
-        logger.debug(f"[跳过已爬取url] ：{url}")
-        return None
+    with gv.lock_searched_url:
+        if url in gv.searched_url:
+            logger.debug(f"[跳过已爬取url] ：{url}")
+            return pbar_add
     if is_exclusions(url):
         logger.debug(f"[跳过排除url] ：{url}")
-        return  None
+        return pbar_add
     
     # 爬取并保存页面
     logger.info(f"[新页面，开始爬取] 链接: {url}")
@@ -275,9 +280,38 @@ def crawl_recursive(url:str, driver) -> Union[tuple[set, list], None]:
         logger.error(f"[因为意外原因爬取失败] 链接: {url} 错误: {e}")
         rt = None
 
-    if rt != None:
-        logger.info(f"[新页面，已爬取] 链接: {url}")
-    return rt
+    # 如果爬取失败则直接结束
+    if rt is None:
+        return pbar_add
+    
+    # 提取页面中的链接
+    logger.info(f"[新页面，已爬取] 链接: {url}")
+    page_links, file_links = rt
+    # 将新页面链接加入待爬取列表
+    if page_links:
+        with gv.lock_page_links:
+            new_links = page_links - gv.searched_url
+        if new_links:
+            page_link_file.save_line(new_links)
+            with gv.lock_page_links:
+                ori_num = len(gv.page_links)
+                gv.page_links.update(new_links)    # 将新链接加进待爬取列表（set自动去重）
+                pbar_add = len(gv.page_links) - ori_num  # 重新设置 total 值  
+
+    # 将新文件链接加入待下载列表            
+    if file_links[1]:
+        file_link_file.save_line(file_links)
+        with gv.lock_file_links:
+            gv.file_links.append(file_links)       # 将新文件链接添加到待下载列表
+
+    # 将当前URL添加到已爬取列表
+    with gv.lock_searched_url:
+        if url not in gv.searched_url:
+            searched_url_file.save_line(url)
+            gv.searched_url.add(url)
+
+    return pbar_add
+
     
 
 
@@ -319,18 +353,18 @@ def download_file(link: str, verify = True) -> str:
             logger.warning(f"[下载失败，跳过此文件]：{response.status_code}")
     except requests.exceptions.ReadTimeout:
         logger.warning("请求失败：连接超时（Read timed out）")
-        record_error_url("Timeout", link)
+        error_url_file.record_error("Timeout", link)
         return None
     except requests.exceptions.SSLError as e:
         logger.warning(f"请求失败：SSL 错误（{e}）")
         return download_file(link, False)       # 重新下载，关闭SSL验证(很不规范，但先用着)
     except requests.exceptions.ProxyError as e:
         logger.warning(f"请求失败：代理错误（{e}）")
-        record_error_url("Proxy", link)
+        error_url_file.record_error("Proxy", link)
         return None
     except requests.RequestException as e:
         logger.error(f"请求失败: {e}")
-        record_error_url("Others", link)
+        error_url_file.record_error("Others", link)
         return None
     
     return file_path
